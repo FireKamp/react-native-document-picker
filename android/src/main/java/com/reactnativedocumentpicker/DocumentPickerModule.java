@@ -217,6 +217,41 @@ public class DocumentPickerModule extends ReactContextBaseJavaModule {
     }
   }
 
+  private static String getRealPath(Context context, Uri uri) {
+    //Try to get the file real path using FileUtils
+    String path = FileUtils.getPath(context, uri);
+    if (path == null || !new File(path).exists()) {
+      //if failed then try to get the file path using the parse method
+      path = parseAndGetRealPath(uri);
+      if (path != null && new File(path).exists()) {
+        return path;
+      }
+    } else  {
+      return path;
+    }
+
+    return null;
+  }
+  private static String parseAndGetRealPath(Uri uri) {
+    String path = null;
+    String encodedPath = uri.getPath();
+    if (encodedPath != null && !encodedPath.equals("") && encodedPath.contains(":")) {
+      String[] arr = encodedPath.split(":");
+      String storageDeviceName = arr[0].substring(arr[0].lastIndexOf("/") + 1);
+      String remainingPath = arr[1];
+
+      if (storageDeviceName.contains("primary")) {
+        storageDeviceName = "/storage/emulated/0/";
+      } else {
+        storageDeviceName = "/storage/" + storageDeviceName + "/";
+      }
+      path = storageDeviceName + remainingPath;
+    }
+    return path;
+  }
+
+
+
   private static class ProcessDataTask extends GuardedResultAsyncTask<ReadableArray> {
     private final WeakReference<Context> weakContext;
     private final List<Uri> uris;
@@ -252,7 +287,8 @@ public class DocumentPickerModule extends ReactContextBaseJavaModule {
       }
       ContentResolver contentResolver = context.getContentResolver();
       WritableMap map = Arguments.createMap();
-      map.putString(FIELD_URI, uri.toString());
+      String realPath = getRealPath(context, uri);
+      map.putString(FIELD_URI, realPath != null ? realPath : uri.toString());
       map.putString(FIELD_TYPE, contentResolver.getType(uri));
       try (Cursor cursor = contentResolver.query(uri, null, null, null, null, null)) {
         if (cursor != null && cursor.moveToFirst()) {
