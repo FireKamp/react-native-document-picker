@@ -58,6 +58,7 @@ public class DocumentPickerModule extends ReactContextBaseJavaModule {
   private static final String FIELD_URI = "uri";
   private static final String FIELD_FILE_COPY_URI = "fileCopyUri";
   private static final String FIELD_COPY_ERROR = "copyError";
+  private static final String FIELD_ENCODED_PATH = "encodedPath";
   private static final String FIELD_NAME = "name";
   private static final String FIELD_TYPE = "type";
   private static final String FIELD_SIZE = "size";
@@ -220,18 +221,24 @@ public class DocumentPickerModule extends ReactContextBaseJavaModule {
   private static String getRealPath(Context context, Uri uri) {
     //Try to get the file real path using FileUtils
     String path = FileUtils.getPath(context, uri);
-    if (path == null || !new File(path).exists()) {
-      //if failed then try to get the file path using the parse method
-      path = parseAndGetRealPath(uri);
-      if (path != null && new File(path).exists()) {
-        return path;
-      }
-    } else  {
+    if (path != null && new File(path).exists()) {
+      return path;
+    }
+
+    //if failed then try to get the file path using the parse method
+    path = parseAndGetRealPath(uri);
+    if (path != null && new File(path).exists()) {
+      return path;
+    }
+
+    path = parse3rdPartyFileManagersURI(uri);
+    if (path != null && new File(path).exists()) {
       return path;
     }
 
     return null;
   }
+
   private static String parseAndGetRealPath(Uri uri) {
     String path = null;
     String encodedPath = uri.getPath();
@@ -250,7 +257,47 @@ public class DocumentPickerModule extends ReactContextBaseJavaModule {
     return path;
   }
 
+  private static String parse3rdPartyFileManagersURI(Uri uri) {
+    String path = null;
+    String encodedPath = uri.getPath();
+    if (encodedPath != null && !encodedPath.equals("")) {
+      if (encodedPath.contains("external_storage_root")) {
+        /*
+         * Example
+         * /external_storage_root/DCIM/Camera/image1.png
+         * returns
+         * /storage/emulated/0/DCIM/Camera/image1.png
+         * */
+        String[] arr = encodedPath.split("external_storage_root");
+        path = "/storage/emulated/0" + arr[1];
+      }
 
+      if (encodedPath.contains("external_storage_download")) {
+
+        /*
+         * Example
+         * /external_storage_download/tutorial.pdf
+         * returns
+         * /storage/emulated/0/Download/tutorial.pdf
+         * */
+
+        String[] arr = encodedPath.split("external_storage_download");
+        path = "/storage/emulated/0/Download" + arr[1];
+      }
+
+      if (encodedPath.contains("ext-path")) {
+        /*
+         * Example
+         * /ext-path/storage/09D6-CD39/Documents/image1.png
+         * returns
+         * /storage/09D6-CD39/Documents/image1.png
+         * */
+        String[] arr = encodedPath.split("ext-path");
+        path = arr[1];
+      }
+    }
+    return path;
+  }
 
   private static class ProcessDataTask extends GuardedResultAsyncTask<ReadableArray> {
     private final WeakReference<Context> weakContext;
@@ -289,6 +336,7 @@ public class DocumentPickerModule extends ReactContextBaseJavaModule {
       WritableMap map = Arguments.createMap();
       String realPath = getRealPath(context, uri);
       map.putString(FIELD_URI, realPath != null ? realPath : uri.toString());
+      map.putString(FIELD_ENCODED_PATH, uri != null ? uri.getPath() : "");
       map.putString(FIELD_TYPE, contentResolver.getType(uri));
       try (Cursor cursor = contentResolver.query(uri, null, null, null, null, null)) {
         if (cursor != null && cursor.moveToFirst()) {
@@ -368,7 +416,8 @@ public class DocumentPickerModule extends ReactContextBaseJavaModule {
           if (out != null) {
             out.close();
           }
-        } catch (IOException ignored) {}
+        } catch (IOException ignored) {
+        }
         throw e;
       }
     }
