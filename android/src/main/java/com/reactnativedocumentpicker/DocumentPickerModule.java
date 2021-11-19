@@ -258,10 +258,14 @@ public class DocumentPickerModule extends ReactContextBaseJavaModule {
   }
 
   private static String parse3rdPartyFileManagersURI(Uri uri) {
-    String path = null;
     String encodedPath = uri.getPath();
-    if (encodedPath != null && !encodedPath.equals("")) {
-      if (encodedPath.contains("external_storage_root")) {
+    if (encodedPath != null && !encodedPath.equals("") && encodedPath.contains("/")) {
+      String[] encodedPathArr = encodedPath.split("/");
+      String firstPathPart = encodedPathArr[1];
+      String path;
+      // Support WPX Office FileManager URI
+      if (firstPathPart.equals("external_storage_root")) {
+
         /*
          * Example
          * /external_storage_root/DCIM/Camera/image1.png
@@ -270,9 +274,11 @@ public class DocumentPickerModule extends ReactContextBaseJavaModule {
          * */
         String[] arr = encodedPath.split("external_storage_root");
         path = "/storage/emulated/0" + arr[1];
+        return path;
       }
 
-      if (encodedPath.contains("external_storage_download")) {
+      // Support WPX Office FileManager URI
+      if (firstPathPart.equals("external_storage_download")) {
 
         /*
          * Example
@@ -280,12 +286,14 @@ public class DocumentPickerModule extends ReactContextBaseJavaModule {
          * returns
          * /storage/emulated/0/Download/tutorial.pdf
          * */
-
         String[] arr = encodedPath.split("external_storage_download");
         path = "/storage/emulated/0/Download" + arr[1];
+        return path;
       }
 
-      if (encodedPath.contains("ext-path")) {
+      // Support WPX Office FileManager URI
+      if (firstPathPart.equals("ext-path")) {
+
         /*
          * Example
          * /ext-path/storage/09D6-CD39/Documents/image1.png
@@ -294,9 +302,39 @@ public class DocumentPickerModule extends ReactContextBaseJavaModule {
          * */
         String[] arr = encodedPath.split("ext-path");
         path = arr[1];
+        return path;
+      }
+
+      // Support Mi (Xiaomi) FileManager URI
+      if (firstPathPart.equals("root_files")) {
+
+        /*
+         * Example
+         * /root_files/storage/09D6-CD39/Documents/tutorial.pdf
+         * returns
+         * /storage/09D6-CD39/Documents/tutorial.pdf
+         * */
+        String[] arr = encodedPath.split("root_files");
+        path = arr[1];
+        return path;
+      }
+
+      // Support Mi (Xiaomi) FileManager URI
+      if (firstPathPart.equals("external_files")) {
+
+        /*
+         * Example
+         * /external_files/Music/fun-song.m4a
+         * returns
+         * /storage/emulated/0/Music/fun-song.m4a
+         * */
+        String[] arr = encodedPath.split("external_files");
+        path = "/storage/emulated/0" + arr[1];
+        return path;
       }
     }
-    return path;
+
+    return null;
   }
 
   private static class ProcessDataTask extends GuardedResultAsyncTask<ReadableArray> {
