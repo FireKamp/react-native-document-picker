@@ -304,6 +304,33 @@ public class DocumentPickerModule extends ReactContextBaseJavaModule {
         path = arr[1];
         return path;
       }
+
+      // Support Mi (Xiaomi) FileManager URI
+      if (firstPathPart.equals("root_files")) {
+
+        /*
+         * Example
+         * /root_files/storage/09D6-CD39/Documents/tutorial.pdf
+         * returns
+         * /storage/09D6-CD39/Documents/tutorial.pdf
+         * */
+        String[] arr = encodedPath.split("root_files");
+        path = arr[1];
+        return path;
+      }
+
+      // Support Mi (Xiaomi) FileManager URI
+      if (firstPathPart.equals("external_files")) {
+
+        /*
+         * Example
+         * /external_files/Music/fun-song.m4a
+         * returns
+         * /storage/emulated/0/Music/fun-song.m4a
+         * */
+        String[] arr = encodedPath.split("external_files");
+        path = "/storage/emulated/0" + arr[1];
+        return path;
       }
     }
 
